@@ -3,85 +3,154 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monitoreo de Vibración Industrial</title>
-    <link rel="icon" type="image/png" href="xinquan2.png">
+    <title>Monitoreo de Vibración - Solución Local</title>
+    
+    <!-- NUEVAS LIBRERÍAS DE RESPALDO (Compatibles con apertura por doble clic local) -->
+    <script src="https://cloudflare.com" integrity="sha512-8Nn0T5p3uPshYv8pP2D20vP83M68S89FjNscO57v3E2lC5I084LhG41S/R7e6u3RscMvKbyoI0M6t2S06A==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="https://jsdelivr.net"></script>
+
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; margin: 0; padding: 20px; color: #333; }
-        .container { max-width: 1000px; margin: 0 auto; }
-        h1 { text-align: center; color: #1e293b; margin-bottom: 30px; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
-        .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
-        .card h2 { margin-top: 0; font-size: 1.2rem; color: #475569; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; }
-        .realtime-val { font-size: 2rem; font-weight: bold; color: #2563eb; margin: 15px 0; text-align: center; }
-        .unit { font-size: 1rem; color: #64748b; }
-        button { display: block; width: 100%; max-width: 200px; margin: 20px auto; padding: 10px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
-        button:hover { background: #1d4ed8; }
+        body { font-family: sans-serif; background: #f4f7f6; padding: 20px; text-align: center; }
+        .container { max-width: 700px; margin: 0 auto; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .value { font-size: 3.5rem; font-weight: bold; color: #00b4d8; margin: 10px 0; }
+        .status-box { background: #e0f2fe; color: #0369a1; padding: 10px; border-radius: 6px; margin-top: 10px; font-family: monospace; font-size: 0.9rem; }
     </style>
 </head>
 <body>
-
-<div class="container">
-    <h1>Panel de Monitoreo de Vibración en Tiempo Real</h1>
-    <button onclick="actualizarDatos()">🔄 Actualizar Panel</button>
-    <div class="grid">
+    <div class="container">
+        <h1>Monitoreo de Vibración</h1>
+        
         <div class="card">
-            <h2>Motor 1 - Bomba de Valve Gates</h2>
-            <div id="val-motor1" class="realtime-val">0.0000 <span class="unit">m/s² RMS</span></div>
-            <div id="grafica-motor1"></div>
+            <h2>Valor Actual (Potentiometer)</h2>
+            <div id="realtime-value" class="value">Iniciando...</div>
+            <p id="last-update" style="color: #7f8c8d;">Conectando...</p>
+            <div id="debug-status" class="status-box">Estado: Cargando JavaScript local...</div>
         </div>
+
         <div class="card">
-            <h2>Motor 2 - Bomba Hidraulica principal</h2>
-            <div id="val-motor2" class="realtime-val">0.0000 <span class="unit">m/s² RMS</span></div>
-            <div id="grafica-motor2"></div>
+            <h2>Historial de Vibraciones</h2>
+            <div style="position: relative; height: 300px;"><canvas id="historyChart"></canvas></div>
         </div>
     </div>
-</div>
 
-<script>
-    const SUPABASE_URL = "https://qcsfcpfdzthykyihjyze.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFjc2ZjcGZkenRoeWt5aWhqeXplIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxMTQ3MDMsImV4cCI6MjA5ODY5MDcwM30.b9SukBBjK35vTIQQ7xUp7WZs5mHNKWcEjpgxtXsLCzk";
+    <script>
+        const statusEl = document.getElementById('debug-status');
+        const valueEl = document.getElementById('realtime-value');
+        const updateEl = document.getElementById('last-update');
 
-    const opcionesBase = {
-        chart: { type: 'line', height: 300, animations: { enabled: true } },
-        stroke: { curve: 'smooth', width: 3 },
-        xaxis: { type: 'category', title: { text: 'Tiempo' }, labels: { show: false } },
-        yaxis: { title: { text: 'm/s² RMS' }, min: 0 },
-        dataLabels: { enabled: false }
-    };
-
-    const chartMotor1 = new ApexCharts(document.querySelector("#grafica-motor1"), {...opcionesBase, colors: ['#2563eb'], series: [{name: 'Vibración', data: []}]});
-    const chartMotor2 = new ApexCharts(document.querySelector("#grafica-motor2"), {...opcionesBase, colors: ['#10b981'], series: [{name: 'Vibración', data: []}]});
-    chartMotor1.render();
-    chartMotor2.render();
-
-    async function actualizarDatos() {
-        try {
-            const respuesta = await fetch(`${SUPABASE_URL}?select=*&order=created_at.desc&limit=50`, {
-                headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
-            });
-            const datos = await respuesta.json();
-            const datosM1 = datos.filter(d => d.dispositivo === "Motor_1").reverse();
-            const datosM2 = datos.filter(d => d.dispositivo === "Motor_2").reverse();
-
-            if(datosM1.length > 0) {
-                const ultimoValM1 = datosM1[datosM1.length - 1].vibracion_rms;
-                document.getElementById('val-motor1').innerHTML = `${ultimoValM1.toFixed(4)} <span class="unit">m/s² RMS</span>`;
-                chartMotor1.updateSeries([{ data: datosM1.map(d => d.vibracion_rms) }]);
-            }
-            if(datosM2.length > 0) {
-                const ultimoValM2 = datosM2[datosM2.length - 1].vibracion_rms;
-                document.getElementById('val-motor2').innerHTML = `${ultimoValM2.toFixed(4)} <span class="unit">m/s² RMS</span>`;
-                chartMotor2.updateSeries([{ data: datosM2.map(d => d.vibracion_rms) }]);
-            }
-        } catch (error) {
-            console.error("Error al conectar con Supabase:", error);
+        // Función para atrapar fallos e informarte en pantalla de inmediato
+        function mostrarError(titulo, err) {
+            statusEl.style.background = "#fee2e2";
+            statusEl.style.color = "#991b1b";
+            statusEl.innerText = `${titulo}: ${err.message || err}`;
+            valueEl.innerText = "Fallo";
         }
-    }
 
-    actualizarDatos();
-    setInterval(actualizarDatos, 4000);
-</script>
+        try {
+            statusEl.innerText = "Estado: Verificando librerías...";
+
+            // Verificación manual de que la librería fue descargada por el navegador
+            if (typeof supabase === 'undefined') {
+                mostrarError("Error crítico", "La librería de Supabase sigue bloqueada por tu navegador o red.");
+            } else {
+                statusEl.innerText = "Estado: Librerías cargadas. Inicializando conexión...";
+
+                // 1. CREDENCIALES (Reemplaza con tus datos de Supabase)
+                const SUPABASE_URL = 'https://vkiaothjjovayrzowqmu.supabase.co';
+                const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZraWFvdGhqam92YXlyem93cW11Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1NjY5NTEsImV4cCI6MjA5OTE0Mjk1MX0.k5er8vtVBT9tBCL7tPuiNULNZOqMeX2kLOp36-EgxPY';
+                
+                // Creación usando la librería global cargada
+                const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                statusEl.innerText = "Estado: Conexión establecida con éxito.";
+
+                // 2. CONFIGURACIÓN DEL GRÁFICO (Chart.js)
+                const ctx = document.getElementById('historyChart').getContext('2d');
+                const historyChart = new Chart(ctx, {
+                    type: 'line',
+                    data: { 
+                        labels: [], 
+                        datasets: [{ 
+                            label: 'Potentiometer', 
+                            data: [], 
+                            borderColor: '#00b4d8', 
+                            backgroundColor: 'rgba(0,180,216,0.1)', 
+                            fill: true, 
+                            tension: 0.2 
+                        }] 
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+
+                // 3. CONSULTAR DATOS HISTÓRICOS
+                async function fetchHistory() {
+                    statusEl.innerText = "Estado: Extrayendo datos de la tabla 'vibracion'...";
+                    try {
+                        const { data, error } = await supabaseClient
+                            .from('vibracion')
+                            .select('update_at, potentiometer')
+                            .order('update_at', { ascending: false })
+                            .limit(20);
+
+                        if (error) {
+                            mostrarError("Error Supabase (Revisa políticas RLS)", error);
+                            return;
+                        }
+
+                        if (!data || data.length === 0) {
+                            statusEl.innerText = "Estado: Conectado. Pero tu tabla 'vibracion' no tiene datos guardados.";
+                            valueEl.innerText = "0";
+                            return;
+                        }
+
+                        // Acomodar datos cronológicamente en la gráfica
+                        const orderedData = data.reverse();
+                        orderedData.forEach(row => {
+                            const time = new Date(row.update_at).toLocaleTimeString();
+                            historyChart.data.labels.push(time);
+                            historyChart.data.datasets[0].data.push(row.potentiometer); // Arreglado índice explícito de datasets
+                        });
+                        historyChart.update();
+                        
+                        const last = orderedData[orderedData.length - 1];
+                        valueEl.innerText = last.potentiometer;
+                        updateEl.innerText = `Última actualización: ${new Date(last.update_at).toLocaleTimeString()}`;
+                        statusEl.innerText = "Estado: Listo. Monitoreando vibración en tiempo real...";
+
+                    } catch (fetchErr) {
+                        mostrarError("Error procesando historial", fetchErr);
+                    }
+                }
+
+                // 4. CONFIGURAR TIEMPO REAL
+                supabaseClient
+                    .channel('cambios-vibracion')
+                    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'vibracion' }, (payload) => {
+                        const newRecord = payload.new;
+                        const newTime = new Date(newRecord.update_at).toLocaleTimeString();
+                        
+                        valueEl.innerText = newRecord.potentiometer;
+                        updateEl.innerText = `Última actualización: ${newTime}`;
+                        
+                        historyChart.data.labels.push(newTime);
+                        historyChart.data.datasets[0].data.push(newRecord.potentiometer);
+                        
+                        if (historyChart.data.labels.length > 20) {
+                            historyChart.data.labels.shift();
+                            historyChart.data.datasets[0].data.shift();
+                        }
+                        historyChart.update();
+                        statusEl.innerText = `Estado: Nuevo dato recibido (${newRecord.potentiometer})`;
+                    })
+                    .subscribe();
+
+                // Iniciar descarga inicial
+                fetchHistory();
+            }
+
+        } catch (globalErr) {
+            mostrarError("Error de código interno", globalErr);
+        }
+    </script>
 </body>
 </html>
