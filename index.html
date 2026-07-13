@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monitoreo de Vibración - 100% Inmune</title>
+    <title>Monitoreo de Vibración - Funcionando Seguro</title>
     
-    <!-- LIBRERÍA DE SUPABASE INCRUSTADA EN TEXTO PLANO (Inmune a bloqueos de red) -->
+    <!-- LIBRERÍA DE CONSULTAS INCRUSTADA (Inmune a bloqueos de red) -->
     <script>
-        !function(e,t){"object"==typeof exports&&"undefined"!=typeof module?t(exports):"function"==typeof define&&define.amd?define(["exports"],t):t((e="undefined"!=typeof globalThis?globalThis:e||self).supabase={})}(this,(function(e){"use strict";var t=function(){function e(e,t){this.url=e,this.key=t}return e.prototype.from=function(e){var t=this;return{select:function(r){return{order:function(n,o){return{limit:function(i){return t.request("GET",e,r,n,o,i)}}}}},channel:function(r){return{on:function(n,o,i){return{subscribe:function(){return t.subscribeRealtime(r,o.table,i)}}}}}}},e.prototype.request=function(e,t,r,n,o,i){var u=this,s=this.url+"/rest/v1/"+t+"?select="+encodeURIComponent(r);return n&&(s+="&order="+n+"."+(o&&o.ascending?"asc":"desc")),i&&(s+="&limit="+i),new Promise((function(e){var t=new XMLHttpRequest;t.open("GET",s,!0),t.setRequestHeader("apikey",u.key),t.setRequestHeader("Authorization","Bearer "+u.key),t.onreadystatechange=function(){if(4===t.readyState)if(200===t.status)try{e({data:JSON.parse(t.responseText),error:null})}catch(r){e({data:null,error:r})}else e({data:null,error:{message:t.responseText}})},t.send()}))},e.prototype.subscribeRealtime=function(e,t,r){var n=this,o=this.url.replace("http","ws")+"/realtime/v1/websocket?apikey="+this.key,i=new WebSocket(o);i.onmessage=function(e){try{var o=JSON.parse(e.data);if("postgres_changes"===o.event&&o.payload&&o.payload.table===t)r(o.payload)}catch(i){}},i.onopen=function(){i.send(JSON.stringify({event:"phx_join",topic:"realtime:"+t,payload:{},ref:"1"}))},setInterval((function(){i.readyState===WebSocket.OPEN&&i.send(JSON.stringify({event:"heartbeat",topic:"phoenix",payload:{},ref:"1"}))}),3e4)},e.createClient=function(t,r){return new e(t,r)},e}();e.createClient=t.createClient,Object.defineProperty(e,"__esModule",{value:!0})}));
+        !function(e,t){"object"==typeof exports&&"undefined"!=typeof module?t(exports):"function"==typeof define&&define.amd?define(["exports"],t):t((e="undefined"!=typeof globalThis?globalThis:e||self).supabase={})}(this,(function(e){"use strict";var t=function(){function e(e,t){this.url=e,this.key=t}return e.prototype.from=function(e){var t=this;return{select:function(r){return{order:function(n,o){return{limit:function(i){return t.request("GET",e,r,n,o,i)}}}}}}},e.prototype.request=function(e,t,r,n,o,i){var u=this,s=this.url+"/rest/v1/"+t+"?select="+encodeURIComponent(r);return n&&(s+="&order="+n+"."+(o&&o.ascending?"asc":"desc")),i&&(s+="&limit="+i),new Promise((function(e){var t=new XMLHttpRequest;t.open("GET",s,!0),t.setRequestHeader("apikey",u.key),t.setRequestHeader("Authorization","Bearer "+u.key),t.onreadystatechange=function(){if(4===t.readyState)if(200===t.status)try{e({data:JSON.parse(t.responseText),error:null})}catch(r){e({data:null,error:r})}else e({data:null,error:{message:t.responseText}})},t.send()}))},e.createClient=function(t,r){return new e(t,r)},e}();e.createClient=t.createClient,Object.defineProperty(e,"__esModule",{value:!0})}));
     </script>
 
     <style>
@@ -17,11 +17,11 @@
         .value { font-size: 3.5rem; font-weight: bold; color: #00b4d8; margin: 10px 0; }
         .status-box { background: #e0f2fe; color: #0369a1; padding: 10px; border-radius: 6px; margin-top: 10px; font-family: monospace; font-size: 0.9rem; }
         
-        /* Gráfica nativa en CSS/HTML puro */
+        /* Gráfica nativa en HTML/CSS */
         .chart-pure { display: flex; align-items: flex-end; justify-content: space-between; height: 200px; background: #f8fafc; border-bottom: 2px solid #cbd5e1; padding: 10px; box-sizing: border-box; }
         .bar-container { display: flex; flex-direction: column; align-items: center; flex: 1; margin: 0 2px; }
         .bar { width: 100%; background: #00b4d8; border-radius: 4px 4px 0 0; transition: height 0.3s ease; min-height: 2px; }
-        .bar-label { font-size: 0.7rem; color: #64748b; margin-top: 5px; white-space: nowrap; transform: rotate(-45px); }
+        .bar-label { font-size: 0.7rem; color: #64748b; margin-top: 5px; white-space: nowrap; }
     </style>
 </head>
 <body>
@@ -32,12 +32,11 @@
             <h2>Valor Actual (Potentiometer)</h2>
             <div id="realtime-value" class="value">Conectando...</div>
             <p id="last-update" style="color: #7f8c8d;">Estableciendo enlace de datos...</p>
-            <div id="debug-status" class="status-box">Estado: Cargando Supabase Local...</div>
+            <div id="debug-status" class="status-box">Estado: Iniciando...</div>
         </div>
 
         <div class="card">
             <h2>Historial de Vibraciones (HTML Puro)</h2>
-            <!-- Contenedor de nuestra gráfica inmune -->
             <div id="html-chart" class="chart-pure"></div>
         </div>
     </div>
@@ -48,7 +47,6 @@
         const updateEl = document.getElementById('last-update');
         const chartEl = document.getElementById('html-chart');
 
-        // Arreglo local para guardar los datos del historial
         let datosHistoricos = [];
 
         function mostrarError(titulo, err) {
@@ -58,11 +56,8 @@
             valueEl.innerText = "Fallo";
         }
 
-        // Función nativa para dibujar la gráfica sin librerías
         function actualizarGraficaNativa() {
-            chartEl.innerHTML = ''; // Limpiar gráfica
-            
-            // Buscar el valor máximo para escalar las barras al 100% de la altura
+            chartEl.innerHTML = ''; 
             const valores = datosHistoricos.map(d => d.valor);
             const maxVal = Math.max(...valores, 1);
 
@@ -88,23 +83,20 @@
         }
 
         try {
-            statusEl.innerText = "Estado: Conectando a Supabase...";
-            
-            // 1. CREDENCIALES (Asegúrate de colocar tu URL y Clave Anon aquí)
+            // 1. CREDENCIALES (Coloca tus datos aquí)
             const SUPABASE_URL = 'https://vkiaothjjovayrzowqmu.supabase.co';
             const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZraWFvdGhqam92YXlyem93cW11Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1NjY5NTEsImV4cCI6MjA5OTE0Mjk1MX0.k5er8vtVBT9tBCL7tPuiNULNZOqMeX2kLOp36-EgxPY';
             
             const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-            // 2. OBTENER HISTORIAL DESDE LA TABLA
+            // 2. FUNCIÓN DE CONSULTA REPETITIVA (Auto-actualizable cada 2 segundos)
             async function fetchHistory() {
-                statusEl.innerText = "Estado: Descargando datos de la tabla 'vibracion'...";
                 try {
                     const { data, error } = await supabaseClient
                         .from('vibracion')
                         .select('update_at, potentiometer')
                         .order('update_at', { ascending: false })
-                        .limit(15); // Mostramos los últimos 15 datos en la gráfica
+                        .limit(12); // Últimos 12 registros en pantalla
 
                     if (error) {
                         mostrarError("Error en Supabase", error);
@@ -112,12 +104,12 @@
                     }
 
                     if (!data || data.length === 0) {
-                        statusEl.innerText = "Estado: Conectado. Pero tu tabla está vacía.";
+                        statusEl.innerText = "Estado: Conectado. Pero la tabla está vacía.";
                         valueEl.innerText = "Sin Datos";
                         return;
                     }
 
-                    // Guardar datos en el arreglo ordenados de viejo a nuevo
+                    // Procesar y ordenar cronológicamente
                     datosHistoricos = data.reverse().map(row => ({
                         hora: new Date(row.update_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'}),
                         valor: Number(row.potentiometer)
@@ -128,36 +120,18 @@
                     const last = datosHistoricos[datosHistoricos.length - 1];
                     valueEl.innerText = last.valor;
                     updateEl.innerText = `Última actualización: ${last.hora}`;
-                    statusEl.innerText = "Estado: ¡Listo! Monitoreando vibraciones en tiempo real...";
+                    statusEl.innerText = "Estado: Actualizando datos automáticamente cada 2 segundos.";
 
                 } catch (fetchErr) {
                     mostrarError("Error procesando datos", fetchErr);
                 }
             }
 
-            // 3. ESCUCHAR EN TIEMPO REAL
-            supabaseClient
-                .channel('cambios-vibracion')
-                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'vibracion' }, (payload) => {
-                    const newRecord = payload.new;
-                    const newTime = new Date(newRecord.update_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
-                    const newVal = Number(newRecord.potentiometer);
-
-                    valueEl.innerText = newVal;
-                    updateEl.innerText = `Última actualización: ${newTime}`;
-                    
-                    // Agregar el nuevo dato al historial
-                    datosHistoricos.push({ hora: newTime, valor: newVal });
-                    if (datosHistoricos.length > 15) {
-                        datosHistoricos.shift(); // Quitar el más viejo
-                    }
-
-                    actualizarGraficaNativa();
-                    statusEl.innerText = `Estado: Nuevo dato recibido en vivo (${newVal})`;
-                })
-                .subscribe();
-
+            // Arrancar la primera consulta inmediatamente
             fetchHistory();
+
+            // CORRECCIÓN DEFINITIVA: Consultar los datos de Supabase en bucle constante cada 2000 milisegundos
+            setInterval(fetchHistory, 2000);
 
         } catch (globalErr) {
             mostrarError("Error interno", globalErr);
