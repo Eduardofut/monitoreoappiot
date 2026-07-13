@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monitoreo de Vibración - Funcionando</title>
+    <title>Monitoreo de Vibración - Servidores de Respaldo</title>
     
-    <!-- Librerías oficiales cargadas mediante enlaces globales estándar -->
-    <script src="https://jsdelivr.net"></script>
-    <script src="https://jsdelivr.net"></script>
+    <!-- LIBRERÍAS DE RESPALDO: Usamos servidores CDN alternativos para saltar el bloqueo de tu red -->
+    <script src="https://unpkg.com"></script>
+    <script src="https://cloudflare.com"></script>
 
     <style>
         body { font-family: sans-serif; background: #f4f7f6; padding: 20px; text-align: center; }
@@ -25,7 +25,7 @@
             <h2>Valor Actual (Potentiometer)</h2>
             <div id="realtime-value" class="value">Conectando...</div>
             <p id="last-update" style="color: #7f8c8d;">Estableciendo enlace de datos...</p>
-            <div id="debug-status" class="status-box">Estado: Iniciando conexión...</div>
+            <div id="debug-status" class="status-box">Estado: Iniciando conexión alternativa...</div>
         </div>
 
         <div class="card">
@@ -47,20 +47,21 @@
         }
 
         try {
+            // Verificación segura de carga de la librería
+            if (typeof supabase === 'undefined') {
+                throw new Error("El segundo servidor de librerías también fue bloqueado por tu red.");
+            }
+
+            statusEl.innerText = "Estado: Conectando a la base de datos Supabase...";
+            
             // 1. CREDENCIALES (Asegúrate de colocar tu URL y Clave Anon aquí)
             const SUPABASE_URL = 'https://vkiaothjjovayrzowqmu.supabase.co';
             const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZraWFvdGhqam92YXlyem93cW11Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1NjY5NTEsImV4cCI6MjA5OTE0Mjk1MX0.k5er8vtVBT9tBCL7tPuiNULNZOqMeX2kLOp36-EgxPY';
             
-            // Verificación segura de carga de librería
-            if (typeof supabase === 'undefined') {
-                throw new Error("Librería bloqueada. Desactiva bloqueadores de anuncios (AdBlock) o prueba en modo incógnito.");
-            }
-
-            statusEl.innerText = "Estado: Conectando a Supabase...";
             const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-            // 2. CONFIGURACIÓN DEL GRÁFICO (Sintaxis oficial)
-            statusEl.innerText = "Estado: Creando interfaz de gráfica...";
+            // 2. CONFIGURACIÓN DEL GRÁFICO (Chart.js versión estándar)
+            statusEl.innerText = "Estado: Configurando gráfico histórico...";
             const ctx = document.getElementById('historyChart').getContext('2d');
             const historyChart = new Chart(ctx, {
                 type: 'line',
@@ -70,7 +71,7 @@
                         label: 'Potentiometer', 
                         data: [], 
                         borderColor: '#00b4d8', 
-                        backgroundColor: 'rgba(0,180,216,0.1)', 
+                        backgroundColor: 'rgba(0, 180, 216, 0.1)', 
                         fill: true, 
                         tension: 0.2 
                     }] 
@@ -80,7 +81,7 @@
 
             // 3. OBTENER HISTORIAL DESDE LA TABLA
             async function fetchHistory() {
-                statusEl.innerText = "Estado: Descargando registros de la tabla 'vibracion'...";
+                statusEl.innerText = "Estado: Solicitando registros históricos de 'vibracion'...";
                 try {
                     const { data, error } = await supabaseClient
                         .from('vibracion')
@@ -89,21 +90,22 @@
                         .limit(20);
 
                     if (error) {
-                        mostrarError("Error en Supabase", error);
+                        mostrarError("Error de lectura en Supabase", error);
                         return;
                     }
 
                     if (!data || data.length === 0) {
-                        statusEl.innerText = "Estado: Conectado. Pero tu tabla está vacía.";
-                        valueEl.innerText = "Sin Datos";
+                        statusEl.innerText = "Estado: Conectado con éxito. Pero tu tabla está vacía.";
+                        valueEl.innerText = "0";
                         return;
                     }
 
+                    // Acomodar datos cronológicamente en el gráfico
                     const orderedData = data.reverse();
                     orderedData.forEach(row => {
                         const time = new Date(row.update_at).toLocaleTimeString();
                         historyChart.data.labels.push(time);
-                        historyChart.data.datasets[0].data.push(row.potentiometer); // Fijo: Arreglo indexado explícitamente para Chart.js
+                        historyChart.data.datasets[0].data.push(row.potentiometer); // Fijo: acceso correcto al primer dataset [0]
                     });
                     historyChart.update();
                     
@@ -128,14 +130,14 @@
                     updateEl.innerText = `Última actualización: ${newTime}`;
                     
                     historyChart.data.labels.push(newTime);
-                    historyChart.data.datasets[0].data.push(newRecord.potentiometer); // Fijo: Arreglo indexado explícitamente para Chart.js
+                    historyChart.data.datasets[0].data.push(newRecord.potentiometer); // Fijo: acceso correcto al primer dataset [0]
                     
                     if (historyChart.data.labels.length > 20) {
                         historyChart.data.labels.shift();
                         historyChart.data.datasets[0].data.shift();
                     }
                     historyChart.update();
-                    statusEl.innerText = `Estado: Nuevo dato recibido (${newRecord.potentiometer})`;
+                    statusEl.innerText = `Estado: Nuevo dato recibido en vivo (${newRecord.potentiometer})`;
                 })
                 .subscribe();
 
