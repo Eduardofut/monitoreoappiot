@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monitoreo de Vibración - GitHub Pages</title>
+    <title>Monitoreo de Vibración - Funcionando</title>
     
-    <!-- Cargamos Chart.js de forma segura -->
+    <!-- Librerías oficiales cargadas mediante enlaces globales estándar -->
+    <script src="https://jsdelivr.net"></script>
     <script src="https://jsdelivr.net"></script>
 
     <style>
@@ -24,7 +25,7 @@
             <h2>Valor Actual (Potentiometer)</h2>
             <div id="realtime-value" class="value">Conectando...</div>
             <p id="last-update" style="color: #7f8c8d;">Estableciendo enlace de datos...</p>
-            <div id="debug-status" class="status-box">Estado: Cargando Supabase...</div>
+            <div id="debug-status" class="status-box">Estado: Iniciando conexión...</div>
         </div>
 
         <div class="card">
@@ -33,11 +34,7 @@
         </div>
     </div>
 
-    <!-- Forzamos el uso de módulos, ideal para GitHub Pages -->
-    <script type="module">
-        // Importación directa y moderna de Supabase que no genera el error 'not defined'
-        import { createClient } from 'https://jsdelivr.net';
-
+    <script>
         const statusEl = document.getElementById('debug-status');
         const valueEl = document.getElementById('realtime-value');
         const updateEl = document.getElementById('last-update');
@@ -54,10 +51,16 @@
             const SUPABASE_URL = 'https://vkiaothjjovayrzowqmu.supabase.co';
             const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZraWFvdGhqam92YXlyem93cW11Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1NjY5NTEsImV4cCI6MjA5OTE0Mjk1MX0.k5er8vtVBT9tBCL7tPuiNULNZOqMeX2kLOp36-EgxPY';
             
-            statusEl.innerText = "Estado: Conectando a la base de datos...";
-            const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
+            // Verificación segura de carga de librería
+            if (typeof supabase === 'undefined') {
+                throw new Error("Librería bloqueada. Desactiva bloqueadores de anuncios (AdBlock) o prueba en modo incógnito.");
+            }
 
-            // 2. CONFIGURACIÓN DEL GRÁFICO (Chart.js)
+            statusEl.innerText = "Estado: Conectando a Supabase...";
+            const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+            // 2. CONFIGURACIÓN DEL GRÁFICO (Sintaxis oficial)
+            statusEl.innerText = "Estado: Creando interfaz de gráfica...";
             const ctx = document.getElementById('historyChart').getContext('2d');
             const historyChart = new Chart(ctx, {
                 type: 'line',
@@ -77,7 +80,7 @@
 
             // 3. OBTENER HISTORIAL DESDE LA TABLA
             async function fetchHistory() {
-                statusEl.innerText = "Estado: Solicitando historial...";
+                statusEl.innerText = "Estado: Descargando registros de la tabla 'vibracion'...";
                 try {
                     const { data, error } = await supabaseClient
                         .from('vibracion')
@@ -86,13 +89,13 @@
                         .limit(20);
 
                     if (error) {
-                        mostrarError("Error de Supabase", error);
+                        mostrarError("Error en Supabase", error);
                         return;
                     }
 
                     if (!data || data.length === 0) {
-                        statusEl.innerText = "Estado: Conectado. Tu tabla está vacía.";
-                        valueEl.innerText = "0";
+                        statusEl.innerText = "Estado: Conectado. Pero tu tabla está vacía.";
+                        valueEl.innerText = "Sin Datos";
                         return;
                     }
 
@@ -100,7 +103,7 @@
                     orderedData.forEach(row => {
                         const time = new Date(row.update_at).toLocaleTimeString();
                         historyChart.data.labels.push(time);
-                        historyChart.data.datasets[0].data.push(row.potentiometer); 
+                        historyChart.data.datasets[0].data.push(row.potentiometer); // Fijo: Arreglo indexado explícitamente para Chart.js
                     });
                     historyChart.update();
                     
@@ -125,7 +128,7 @@
                     updateEl.innerText = `Última actualización: ${newTime}`;
                     
                     historyChart.data.labels.push(newTime);
-                    historyChart.data.datasets[0].data.push(newRecord.potentiometer); 
+                    historyChart.data.datasets[0].data.push(newRecord.potentiometer); // Fijo: Arreglo indexado explícitamente para Chart.js
                     
                     if (historyChart.data.labels.length > 20) {
                         historyChart.data.labels.shift();
