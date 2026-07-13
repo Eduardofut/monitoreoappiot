@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monitoreo de Vibración - Solución Local</title>
+    <title>Monitoreo de Vibración - Servidor Local</title>
     
-    <!-- NUEVAS LIBRERÍAS DE RESPALDO (Compatibles con apertura por doble clic local) -->
-    <script src="https://cloudflare.com" integrity="sha512-8Nn0T5p3uPshYv8pP2D20vP83M68S89FjNscO57v3E2lC5I084LhG41S/R7e6u3RscMvKbyoI0M6t2S06A==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <!-- Librerías Oficiales Externas -->
+    <script src="https://jsdelivr.net"></script>
     <script src="https://jsdelivr.net"></script>
 
     <style>
@@ -23,14 +23,16 @@
         
         <div class="card">
             <h2>Valor Actual (Potentiometer)</h2>
-            <div id="realtime-value" class="value">Iniciando...</div>
-            <p id="last-update" style="color: #7f8c8d;">Conectando...</p>
-            <div id="debug-status" class="status-box">Estado: Cargando JavaScript local...</div>
+            <div id="realtime-value" class="value">Conectando...</div>
+            <p id="last-update" style="color: #7f8c8d;">Estableciendo enlace de datos...</p>
+            <div id="debug-status" class="status-box">Estado: Inicializando...</div>
         </div>
 
         <div class="card">
             <h2>Historial de Vibraciones</h2>
-            <div style="position: relative; height: 300px;"><canvas id="historyChart"></canvas></div>
+            <div style="position: relative; height: 300px;">
+                <canvas id="historyChart"></canvas>
+            </div>
         </div>
     </div>
 
@@ -39,117 +41,98 @@
         const valueEl = document.getElementById('realtime-value');
         const updateEl = document.getElementById('last-update');
 
-        // Función para atrapar fallos e informarte en pantalla de inmediato
         function mostrarError(titulo, err) {
             statusEl.style.background = "#fee2e2";
             statusEl.style.color = "#991b1b";
-            statusEl.innerText = `${titulo}: ${err.message || err}`;
+            statusEl.innerText = `${titulo}: ${err.message || JSON.stringify(err)}`;
             valueEl.innerText = "Fallo";
         }
 
         try {
-            statusEl.innerText = "Estado: Verificando librerías...";
+            // 1. CREDENCIALES (Coloca aquí tus datos reales)
+            const SUPABASE_URL = 'TU_SUPABASE_URL_AQUÍ';
+            const SUPABASE_KEY = 'TU_SUPABASE_ANON_KEY_AQUÍ';
+            
+            const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-            // Verificación manual de que la librería fue descargada por el navegador
-            if (typeof supabase === 'undefined') {
-                mostrarError("Error crítico", "La librería de Supabase sigue bloqueada por tu navegador o red.");
-            } else {
-                statusEl.innerText = "Estado: Librerías cargadas. Inicializando conexión...";
+            // 2. CONFIGURACIÓN DEL GRÁFICO (Chart.js Oficial)
+            const ctx = document.getElementById('historyChart').getContext('2d');
+            const historyChart = new Chart(ctx, {
+                type: 'line',
+                data: { 
+                    labels: [], 
+                    datasets: [{ 
+                        label: 'Potentiometer', 
+                        data: [], 
+                        borderColor: '#00b4d8', 
+                        backgroundColor: 'rgba(0,180,216,0.1)', 
+                        fill: true, 
+                        tension: 0.2 
+                    }] 
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
 
-                // 1. CREDENCIALES (Reemplaza con tus datos de Supabase)
-                const SUPABASE_URL = 'https://vkiaothjjovayrzowqmu.supabase.co';
-                const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZraWFvdGhqam92YXlyem93cW11Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1NjY5NTEsImV4cCI6MjA5OTE0Mjk1MX0.k5er8vtVBT9tBCL7tPuiNULNZOqMeX2kLOp36-EgxPY';
-                
-                // Creación usando la librería global cargada
-                const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-                statusEl.innerText = "Estado: Conexión establecida con éxito.";
+            // 3. OBTENER HISTORIAL
+            async function fetchHistory() {
+                statusEl.innerText = "Estado: Solicitando datos a Supabase...";
+                const { data, error } = await supabaseClient
+                    .from('vibracion')
+                    .select('update_at, potentiometer')
+                    .order('update_at', { ascending: false })
+                    .limit(20);
 
-                // 2. CONFIGURACIÓN DEL GRÁFICO (Chart.js)
-                const ctx = document.getElementById('historyChart').getContext('2d');
-                const historyChart = new Chart(ctx, {
-                    type: 'line',
-                    data: { 
-                        labels: [], 
-                        datasets: [{ 
-                            label: 'Potentiometer', 
-                            data: [], 
-                            borderColor: '#00b4d8', 
-                            backgroundColor: 'rgba(0,180,216,0.1)', 
-                            fill: true, 
-                            tension: 0.2 
-                        }] 
-                    },
-                    options: { responsive: true, maintainAspectRatio: false }
-                });
-
-                // 3. CONSULTAR DATOS HISTÓRICOS
-                async function fetchHistory() {
-                    statusEl.innerText = "Estado: Extrayendo datos de la tabla 'vibracion'...";
-                    try {
-                        const { data, error } = await supabaseClient
-                            .from('vibracion')
-                            .select('update_at, potentiometer')
-                            .order('update_at', { ascending: false })
-                            .limit(20);
-
-                        if (error) {
-                            mostrarError("Error Supabase (Revisa políticas RLS)", error);
-                            return;
-                        }
-
-                        if (!data || data.length === 0) {
-                            statusEl.innerText = "Estado: Conectado. Pero tu tabla 'vibracion' no tiene datos guardados.";
-                            valueEl.innerText = "0";
-                            return;
-                        }
-
-                        // Acomodar datos cronológicamente en la gráfica
-                        const orderedData = data.reverse();
-                        orderedData.forEach(row => {
-                            const time = new Date(row.update_at).toLocaleTimeString();
-                            historyChart.data.labels.push(time);
-                            historyChart.data.datasets[0].data.push(row.potentiometer); // Arreglado índice explícito de datasets
-                        });
-                        historyChart.update();
-                        
-                        const last = orderedData[orderedData.length - 1];
-                        valueEl.innerText = last.potentiometer;
-                        updateEl.innerText = `Última actualización: ${new Date(last.update_at).toLocaleTimeString()}`;
-                        statusEl.innerText = "Estado: Listo. Monitoreando vibración en tiempo real...";
-
-                    } catch (fetchErr) {
-                        mostrarError("Error procesando historial", fetchErr);
-                    }
+                if (error) {
+                    mostrarError("Error en Supabase", error);
+                    return;
                 }
 
-                // 4. CONFIGURAR TIEMPO REAL
-                supabaseClient
-                    .channel('cambios-vibracion')
-                    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'vibracion' }, (payload) => {
-                        const newRecord = payload.new;
-                        const newTime = new Date(newRecord.update_at).toLocaleTimeString();
-                        
-                        valueEl.innerText = newRecord.potentiometer;
-                        updateEl.innerText = `Última actualización: ${newTime}`;
-                        
-                        historyChart.data.labels.push(newTime);
-                        historyChart.data.datasets[0].data.push(newRecord.potentiometer);
-                        
-                        if (historyChart.data.labels.length > 20) {
-                            historyChart.data.labels.shift();
-                            historyChart.data.datasets[0].data.shift();
-                        }
-                        historyChart.update();
-                        statusEl.innerText = `Estado: Nuevo dato recibido (${newRecord.potentiometer})`;
-                    })
-                    .subscribe();
+                if (!data || data.length === 0) {
+                    statusEl.innerText = "Estado: Conectado. Pero la tabla está vacía.";
+                    valueEl.innerText = "0";
+                    return;
+                }
 
-                // Iniciar descarga inicial
-                fetchHistory();
+                const orderedData = data.reverse();
+                orderedData.forEach(row => {
+                    const time = new Date(row.update_at).toLocaleTimeString();
+                    historyChart.data.labels.push(time);
+                    historyChart.data.datasets[0].data.push(row.potentiometer); 
+                });
+                historyChart.update();
+                
+                const last = orderedData[orderedData.length - 1];
+                valueEl.innerText = last.potentiometer;
+                updateEl.innerText = `Última actualización: ${new Date(last.update_at).toLocaleTimeString()}`;
+                statusEl.innerText = "Estado: Listo. Monitoreando en tiempo real...";
             }
 
+            // 4. TIEMPO REAL
+            supabaseClient
+                .channel('cambios-vibracion')
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'vibracion' }, (payload) => {
+                    const newRecord = payload.new;
+                    const newTime = new Date(newRecord.update_at).toLocaleTimeString();
+                    
+                    valueEl.innerText = newRecord.potentiometer;
+                    updateEl.innerText = `Última actualización: ${newTime}`;
+                    
+                    historyChart.data.labels.push(newTime);
+                    historyChart.data.datasets[0].data.push(newRecord.potentiometer); 
+                    
+                    if (historyChart.data.labels.length > 20) {
+                        historyChart.data.labels.shift();
+                        historyChart.data.datasets[0].data.shift(); 
+                    }
+                    historyChart.update();
+                    statusEl.innerText = `Estado: Nuevo dato recibido (${newRecord.potentiometer})`;
+                })
+                .subscribe();
+
+            fetchHistory();
+
         } catch (globalErr) {
-            mostrarError("Error de código interno", globalErr);
+            mostrarError("Error interno", globalErr);
         }
     </script>
 </body>
