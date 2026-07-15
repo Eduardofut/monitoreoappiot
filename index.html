@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monitoreo de Vibración - Funcionando Seguro</title>
+    <title>Monitoreo de Vibración - Corregido</title>
     
     <!-- LIBRERÍA DE CONSULTAS INCRUSTADA -->
     <script>
         !function(e,t){"object"==typeof exports&&"undefined"!=typeof module?t(exports):"function"==typeof define&&define.amd?define(["exports"],t):t((e="undefined"!=typeof globalThis?globalThis:e||self).supabase={})}(this,(function(e){"use strict";var t=function(){function e(e,t){this.url=e,this.key=t}return e.prototype.from=function(e){var t=this;return{select:function(r){return{order:function(n,o){return{limit:function(i){return t.request("GET",e,r,n,o,i)}}}}}}},e.prototype.request=function(e,t,r,n,o,i){var u=this,s=this.url+"/rest/v1/"+t+"?select="+encodeURIComponent(r);return n&&(s+="&order="+n+"."+(o&&o.ascending?"asc":"desc")),i&&(s+="&limit="+i),new Promise((function(e){var t=new XMLHttpRequest;t.open("GET",s,!0),t.setRequestHeader("apikey",u.key),t.setRequestHeader("Authorization","Bearer "+u.key),t.onreadystatechange=function(){if(4===t.readyState)if(200===t.status)try{e({data:JSON.parse(t.responseText),error:null})}catch(r){e({data:null,error:r})}else e({data:null,error:{message:t.responseText}})},t.send()}))},e.createClient=function(t,r){return new e(t,r)},e}();e.createClient=t.createClient,Object.defineProperty(e,"__esModule",{value:!0})}));
     </script>
 
-    <!-- LIBRERÍA CHART.JS PARA LA GRÁFICA PROFESIONAL -->
+    <!-- LIBRERÍA CHART.JS CON RESPALDO CDN ORIGINAL -->
     <script src="https://jsdelivr.net"></script>
 
     <style>
@@ -48,9 +48,9 @@
         const valueEl = document.getElementById('realtime-value');
         const updateEl = document.getElementById('last-update');
         
-        let chart; 
-        let ultimoTimeTag = null; // Evita duplicar datos si Supabase no ha cambiado
-        const MAX_PUNTOS = 15; // Cantidad máxima de puntos visibles en la gráfica
+        let miGraficaInstance = null; 
+        let ultimoTimeTag = null; 
+        const MAX_PUNTOS = 15; 
 
         function mostrarError(titulo, err) {
             statusEl.style.background = "#fee2e2";
@@ -59,57 +59,59 @@
             valueEl.innerText = "--";
         }
 
-        // Inicialización de la gráfica con Chart.js
         function inicializarGrafica() {
-            const ctx = document.getElementById('liveChart').getContext('2d');
-            
-            // Degradado azul translúcido debajo de la línea
-            const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-            gradient.addColorStop(0, 'rgba(2, 132, 199, 0.4)');
-            gradient.addColorStop(1, 'rgba(2, 132, 199, 0.0)');
+            try {
+                const ctx = document.getElementById('liveChart').getContext('2d');
+                
+                const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+                gradient.addColorStop(0, 'rgba(2, 132, 199, 0.4)');
+                gradient.addColorStop(1, 'rgba(2, 132, 199, 0.0)');
 
-            chart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: 'Vibración',
-                        data: [],
-                        borderColor: '#0284c7',
-                        borderWidth: 3,
-                        backgroundColor: gradient,
-                        fill: true,
-                        tension: 0.4, // Curvatura suave de la línea
-                        pointBackgroundColor: '#0284c7',
-                        pointRadius: 4,
-                        pointHoverRadius: 6
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        x: { grid: { display: false }, ticks: { color: '#64748b' } },
-                        y: { 
-                            grid: { color: '#e2e8f0' }, 
-                            ticks: { color: '#64748b' },
-                            beginAtZero: true
+                // CORRECCIÓN: Se usa "new Chart" correctamente referenciando la clase global de la CDN
+                miGraficaInstance = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: 'Vibración',
+                            data: [],
+                            borderColor: '#0284c7',
+                            borderWidth: 3,
+                            backgroundColor: gradient,
+                            fill: true,
+                            tension: 0.4, 
+                            pointBackgroundColor: '#0284c7',
+                            pointRadius: 4,
+                            pointHoverRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: { grid: { display: false }, ticks: { color: '#64748b' } },
+                            y: { 
+                                grid: { color: '#e2e8f0' }, 
+                                ticks: { color: '#64748b' },
+                                beginAtZero: true
+                            }
                         }
                     }
-                }
-            });
+                });
+            } catch(e) {
+                mostrarError("Error cargando la librería gráfica", e);
+            }
         }
 
         try {
-            const SUPABASE_URL = 'https://vkiaothjjovayrzowqmu.supabase.co';
+            const SUPABASE_URL = 'https://supabase.co';
             const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZraWFvdGhqam92YXlyem93cW11Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1NjY5NTEsImV4cCI6MjA5OTE0Mjk1MX0.k5er8vtVBT9tBCL7tPuiNULNZOqMeX2kLOp36-EgxPY';
             
             const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
             async function fetchHistory() {
                 try {
-                    // Consultamos los últimos 15 registros
                     const { data, error } = await supabaseClient
                         .from('vibracion')
                         .select('update_at, potentiometer')
@@ -122,50 +124,52 @@
                         return;
                     }
 
-                    // El registro más nuevo en Supabase siempre es el primero por el 'descending: true'
-                    const registroMasReciente = data[0];
+                    // Tomamos la fila más reciente (índice 0 por el orden desc)
+                    const registroMasReciente = data[0]; 
                     const nuevaHora = new Date(registroMasReciente.update_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
                     const nuevoValor = Number(registroMasReciente.potentiometer);
 
-                    // Si es la primera ejecución, cargamos todo el histórico disponible
-                    if (chart.data.labels.length === 0) {
-                        const historicoInvertido = data.reverse();
-                        historicoInvertido.forEach(row => {
+                    // Si la gráfica está vacía, la poblamos inicialmente
+                    if (miGraficaInstance.data.labels.length === 0) {
+                        // Invertimos una copia para mostrar orden cronológico de izquierda a derecha
+                        const historicoCronologico = [...data].reverse();
+                        
+                        historicoCronologico.forEach(row => {
                             const horaFormateada = new Date(row.update_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
-                            chart.data.labels.push(horaFormateada);
-                            chart.data.datasets[0].data.push(Number(row.potentiometer));
+                            miGraficaInstance.data.labels.push(horaFormateada);
+                            miGraficaInstance.data.datasets[0].data.push(Number(row.potentiometer)); // CORRECCIÓN: Acceso directo a datasets[0]
                         });
-                        chart.update();
+                        
+                        miGraficaInstance.update();
                         ultimoTimeTag = registroMasReciente.update_at;
                     } 
-                    // Si ya existían datos, solo inyectamos el nuevo si la estampa de tiempo cambió
+                    // Si ya tiene datos, añadimos el nuevo punto solo si cambió la estampa de tiempo
                     else if (registroMasReciente.update_at !== ultimoTimeTag) {
-                        chart.data.labels.push(nuevaHora);
-                        chart.data.datasets[0].data.push(nuevoValor);
+                        miGraficaInstance.data.labels.push(nuevaHora);
+                        miGraficaInstance.data.datasets[0].data.push(nuevoValor);
 
-                        // Si supera el límite de puntos en pantalla, eliminamos el más viejo para desplazar la gráfica
-                        if (chart.data.labels.length > MAX_PUNTOS) {
-                            chart.data.labels.shift();
-                            chart.data.datasets[0].data.shift();
+                        if (miGraficaInstance.data.labels.length > MAX_PUNTOS) {
+                            miGraficaInstance.data.labels.shift();
+                            miGraficaInstance.data.datasets[0].data.shift();
                         }
                         
-                        chart.update('none'); // Actualización rápida sin re-renderizado pesado
+                        miGraficaInstance.update('none'); 
                         ultimoTimeTag = registroMasReciente.update_at;
                     }
 
-                    // Actualizar indicadores numéricos en pantalla
+                    // Actualizar textos en pantalla
                     valueEl.innerText = nuevoValor;
                     updateEl.innerText = `Última actualización: ${nuevaHora}`;
                     statusEl.style.background = "#e0f2fe";
                     statusEl.style.color = "#0369a1";
-                    statusEl.innerText = "Estado: Monitoreando fluctuaciones en tiempo real (Base de datos optimizada).";
+                    statusEl.innerText = "Estado: Monitoreando fluctuaciones en tiempo real de forma exitosa.";
 
                 } catch (fetchErr) {
                     mostrarError("Error procesando datos", fetchErr);
                 }
             }
 
-            // Encender gráfica y arrancar bucle cada 2 segundos
+            // Arrancar el flujo
             inicializarGrafica();
             fetchHistory();
             setInterval(fetchHistory, 2000);
